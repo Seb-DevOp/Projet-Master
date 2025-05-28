@@ -46,6 +46,7 @@ jobs:
         run: |
           terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode || exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          if [ "$exit_code" = "2" ]; then echo "no_changes=false" >> $GITHUB_OUTPUT; else echo "no_changes=true" >> $GITHUB_OUTPUT; fi
 
       - name: No changes
         if: steps.plan.outputs.exit_code == '0'
@@ -107,13 +108,10 @@ jobs:
           username: ubuntu
           key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
-            # Met à jour les paquets
             sudo apt-get update -y
             sudo apt-get install -y docker.io
             sudo systemctl start docker
             sudo systemctl enable docker
-
-            # Pull et run un container simple (nginx par exemple)
             sudo docker pull nginx:latest
             sudo docker stop my-nginx || true
             sudo docker rm my-nginx || true
