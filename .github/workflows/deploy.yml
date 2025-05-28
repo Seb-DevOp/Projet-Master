@@ -11,7 +11,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: terraform  # Exécuter dans dossier
+        working-directory: terraform
 
     steps:
       - name: Checkout code
@@ -41,17 +41,35 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Apply
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -var-file=terraform.tfvars -out=tfplan.out
+          terraform show -json tfplan.out > tfplan.json
+          # Check if plan has any changes
+          if grep -q '"resource_changes":\s*\[\]' tfplan.json; then
+            echo "No changes detected"
+            echo "no_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected"
+            echo "no_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply Terraform (only if changes)
+        if: steps.plan.outputs.no_changes == 'false'
         run: terraform apply -var-file=terraform.tfvars -auto-approve
 
       - name: Output public IP
+        if: steps.plan.outputs.no_changes == 'false'
         run: terraform output -raw public_ip
 
       - name: Get VM IP
+        if: steps.plan.outputs.no_changes == 'false'
         id: get_ip
         run: echo "VM_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
 
       - name: Generate SSH key
+        if: steps.plan.outputs.no_changes == 'false'
         run: |
           ssh-keygen -t rsa -b 4096 -f temp-ssh-key -N ""
           echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
@@ -60,15 +78,35 @@ jobs:
           echo "SSH_PUBLIC_KEY=$(cat temp-ssh-key.pub)" >> $GITHUB_ENV
 
       - name: Inject SSH public key in VM with Terraform
-        working-directory: terraform
-        run: |
-          echo "public_ssh_key = \"${SSH_PUBLIC_KEY}\"" > temp-auto.tfvars
+        if: steps.plan.outputs.no_changes == 'false'
+        run: echo "public_ssh_key = \"${{ env.SSH_PUBLIC_KEY }}\"" > temp-auto.tfvars
 
       - name: Re-apply Terraform with public key
+        if: steps.plan.outputs.no_changes == 'false'
         run: terraform apply -var-file=terraform.tfvars -var-file=temp-auto.tfvars -auto-approve
-        working-directory: terraform
 
       - name: Save private key to file
+        if: steps.plan.outputs.no_changes == 'false'
         run: |
-          echo "$SSH_PRIVATE_KEY" > temp-ssh-key.pem
+          echo "${{ env.SSH_PRIVATE_KEY }}" > temp-ssh-key.pem
           chmod 600 temp-ssh-key.pem
+
+      - name: Deploy Docker container via SSH
+        if: steps.plan.outputs.no_changes == 'false'
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ env.VM_IP }}
+          username: ubuntu
+          key: ${{ env.SSH_PRIVATE_KEY }}
+          script: |
+            # Met à jour les paquets
+            sudo apt-get update -y
+            sudo apt-get install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+
+            # Pull et run un container simple (nginx par exemple)
+            sudo docker pull nginx:latest
+            sudo docker stop my-nginx || true
+            sudo docker rm my-nginx || true
+            sudo docker run -d --name my-nginx -p 80:80 nginx:latest
