@@ -1,7 +1,7 @@
 terraform {
   backend "gcs" {
-    bucket  = "terraform-state-iotweather"
-    prefix  = "vm/iotweather"
+    bucket  = "projet-master"
+    prefix  = "vm/projet"
   }
 }
 provider "google" {
@@ -16,7 +16,7 @@ resource "google_compute_network" "vpc_network" {
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "subnet-ci-cd-projet-master" # <- nom différent
+  name          = "subnet-ci-cd-projet-master"
   region        = var.region
   network       = google_compute_network.vpc_network.id
   ip_cidr_range = "10.0.0.0/24"
@@ -28,7 +28,7 @@ resource "google_compute_address" "public_ip" {
 }
 
 resource "google_compute_firewall" "default" {
-  name    = "allow-ssh-http-projet-master" # <- nom différent
+  name    = "allow-ssh-http-projet-master"
   network = google_compute_network.vpc_network.id
 
   allow {
