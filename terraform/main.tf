@@ -1,6 +1,6 @@
 terraform {
   backend "gcs" {
-    bucket  = "projet-master"
+    bucket  = "bucket_projet_master"
     prefix  = "vm/projet"
   }
 }
