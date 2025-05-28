@@ -44,16 +44,24 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -var-file=terraform.tfvars -out=tfplan.out
-          terraform show -json tfplan.out > tfplan.json
-          # Check if plan has any changes
-          if grep -q '"resource_changes":\s*\[\]' tfplan.json; then
-            echo "No changes detected"
-            echo "no_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "Changes detected"
-            echo "no_changes=false" >> $GITHUB_OUTPUT
-          fi
+          terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode || exit_code=$?
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+
+      - name: No changes
+        if: steps.plan.outputs.exit_code == '0'
+        run: echo "✅ Aucun changement détecté."
+
+      - name: Stop if changes detected (manual validation required)
+        if: steps.plan.outputs.exit_code == '2'
+        run: |
+          echo "⚠️ Des changements ont été détectés. Validation manuelle requise avant application."
+          exit 1
+
+      - name: Plan failed
+        if: steps.plan.outputs.exit_code != '0' && steps.plan.outputs.exit_code != '2'
+        run: |
+          echo "❌ Échec du plan Terraform."
+          exit 1
 
       - name: Apply Terraform (only if changes)
         if: steps.plan.outputs.no_changes == 'false'
