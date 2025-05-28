@@ -1,0 +1,5 @@
+project_id         = "eastern-memory-460407-a3"
+region             = "europe-west1"
+zone               = "europe-west1-b"
+admin_username     = "ubuntu"
+public_ssh_key     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDORx8rY3YsXcMyVlMVgyX7SJM/czRvPgYFOub+a+yj0wkBNSz5FeYRX62zw82iPKVqbIAC6FeL5PDteOQzyLbw37zWFz+2ZiSEYolg4RYG8A1LH995nlSn+0GAbzSeTEFCMLipFCmcOP5sRVXiNQjcwLMPaaJ9nKOEJzJxFQaMav3Qfkpi02ilnRLcOjdOjxxyxRsPBi30zTemZ2pn20358/OwnA1/xa+FBO0+0ryKXmeID4P8SL/JdsJauDqQ3htUrTjF0yLWyzaJAyJiDQyy1tmL5vbdOLMaApFhEsN2BJrxIpFdAkvbXDxgvpW3doq/mcUsoG7pXvZk1YA4hk1atUwlk56e42394v1CY2h0omiBl5krs++3s1DQQdFZjSCoeaabao3tapowYvbST5H9wqBZUT4xVqJcQll/DSQBfRowAwr9OCFRY2uO/migDoRRJbh0NNu4/uoGchB6wqId2ANfLxx1ARnEIOqcwf3ZUXcCv6DbVtUSJ4NMWSS/1PrTL8zzG4m6g2Du7M4RLA8uxY9eSwigRVY8pXE1migOubX88OSC3sCQznJx3Nf2fZAowVztmL43p+Ub6LR/vgWP/xisPAE/cFada3WowgGZH33kwhGFx3y+TTi2YwJkrGLNiZ8y0T3lKiWU5YnZpKGBkCKd6sEMyBrV/09ZqxVDiw== user@DESKTOP-6IJPB9A"
