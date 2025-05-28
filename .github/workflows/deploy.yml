@@ -32,7 +32,7 @@ jobs:
 
       - name: Create terraform.tfvars file
         run: |
-          echo 'project_id         = "eastern-memory-460407-a3"' > terraform.tfvars
+          echo 'project_id         = "projet-pipeline"' > terraform.tfvars
           echo 'region             = "europe-west1"' >> terraform.tfvars
           echo 'zone               = "europe-west1-b"' >> terraform.tfvars
           echo 'admin_username     = "ubuntu"' >> terraform.tfvars
