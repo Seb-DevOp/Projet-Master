@@ -44,22 +44,22 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode || exit_code=$?
-          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          if [ "$exit_code" = "2" ]; then echo "no_changes=false" >> $GITHUB_OUTPUT; else echo "no_changes=true" >> $GITHUB_OUTPUT; fi
-
+          set -e
+          terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode
+          echo "exit_code=2" >> $GITHUB_OUTPUT
+        continue-on-error: true
       - name: No changes
-        if: steps.plan.outputs.exit_code == '0'
+        if: steps.plan.outcome == 'success' && steps.plan.outputs.exit_code == '0'
         run: echo "✅ Aucun changement détecté."
 
       - name: Stop if changes detected (manual validation required)
-        if: steps.plan.outputs.exit_code == '2'
+        if: steps.plan.outcome == 'success' && steps.plan.outputs.exit_code == '2'
         run: |
           echo "⚠️ Des changements ont été détectés. Validation manuelle requise avant application."
           exit 1
 
       - name: Plan failed
-        if: steps.plan.outputs.exit_code != '0' && steps.plan.outputs.exit_code != '2'
+        if: steps.plan.outcome != 'success'
         run: |
           echo "❌ Échec du plan Terraform."
           exit 1
