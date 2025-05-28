@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Copier uniquement les requirements au début pour tirer parti du cache Docker
+# Copier uniquement les requirements au début pour tirer parti du cache
 COPY requirements.txt .
 
 # Installer les dépendances système nécessaires pour compiler certains packages Python
