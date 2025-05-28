@@ -11,24 +11,24 @@ provider "google" {
 }
 
 resource "google_compute_network" "vpc_network" {
-  name = "vpc-ci-cd-Projet-Master"  # change le nom
+  name = "vpc-ci-cd-projet-master"  # change le nom
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "subnet" {
-  name          = "subnet-ci-cd-Projet-Master" # <- nom différent
+  name          = "subnet-ci-cd-projet-master" # <- nom différent
   region        = var.region
   network       = google_compute_network.vpc_network.id
   ip_cidr_range = "10.0.0.0/24"
 }
 
 resource "google_compute_address" "public_ip" {
-  name   = "ci-cd-ip-Projet-Master"  # change le nom
+  name   = "ci-cd-ip-projet-master"  # change le nom
   region = var.region
 }
 
 resource "google_compute_firewall" "default" {
-  name    = "allow-ssh-http-Projet-Master" # <- nom différent
+  name    = "allow-ssh-http-projet-master" # <- nom différent
   network = google_compute_network.vpc_network.id
 
   allow {
@@ -40,7 +40,7 @@ resource "google_compute_firewall" "default" {
 }
 
 resource "google_compute_instance" "vm" {
-  name         = "ci-cd-vm-Projet-Master"
+  name         = "ci-cd-vm-projet-master"
   machine_type = "e2-medium"
   zone         = var.zone
 
