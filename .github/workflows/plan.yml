@@ -43,3 +43,10 @@ jobs:
           fi
 
           echo "ℹ️ Plan Terraform complété. Déclenchez le workflow 'Terraform Apply' manuellement via l'interface GitHub si vous souhaitez appliquer ces changements."
+      - name: Suggest Apply Action
+        if: steps.plan.outputs.exit_code == '2'
+        run: |
+            echo "ℹ️ Des changements ont été détectés."
+            echo "👉 Pour les appliquer, utilisez le workflow suivant :"
+            echo "🔗 https://github.com/${{ github.repository }}/actions/workflows/apply.yml"
+            echo "Et cliquez sur 'Run workflow'."
