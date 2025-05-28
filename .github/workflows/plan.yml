@@ -1,0 +1,45 @@
+name: Terraform Plan
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.7
+
+      - name: Auth GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode
+        continue-on-error: true
+
+      - name: Check Plan Result
+        run: |
+          if [[ ${{ steps.plan.outcome }} != 'success' ]]; then
+            echo "❌ Échec du plan Terraform."
+            exit 1
+          fi
+
+          echo "ℹ️ Plan Terraform complété. Déclenchez le workflow 'Terraform Apply' manuellement via l'interface GitHub si vous souhaitez appliquer ces changements."

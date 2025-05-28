@@ -1,12 +1,10 @@
-name: Deploy Infrastructure + App to GCP
+name: Deploy Docker App via SSH
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  terraform-and-deploy:
+  deploy-vm:
     runs-on: ubuntu-latest
 
     defaults:
@@ -17,68 +15,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Create terraform directory (in case it doesn't exist)
-        run: mkdir -p .
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.7
-
-      - name: Setup Google Cloud auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Create terraform.tfvars file
-        run: |
-          echo 'project_id         = "projet-pipeline"' > terraform.tfvars
-          echo 'region             = "europe-west1"' >> terraform.tfvars
-          echo 'zone               = "europe-west1-b"' >> terraform.tfvars
-          echo 'admin_username     = "ubuntu"' >> terraform.tfvars
-          echo 'public_ssh_key     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDORx8rY3YsXcMyVlMVgyX7SJM/czRvPgYFOub+a+yj0wkBNSz5FeYRX62zw82iPKVqbIAC6FeL5PDteOQzyLbw37zWFz+2ZiSEYolg4RYG8A1LH995nlSn+0GAbzSeTEFCMLipFCmcOP5sRVXiNQjcwLMPaaJ9nKOEJzJxFQaMav3Qfkpi02ilnRLcOjdOjxxyxRsPBi30zTemZ2pn20358/OwnA1/xa+FBO0+0ryKXmeID4P8SL/JdsJauDqQ3htUrTjF0yLWyzaJAyJiDQyy1tmL5vbdOLMaApFhEsN2BJrxIpFdAkvbXDxgvpW3doq/mcUsoG7pXvZk1YA4hk1atUwlk56e42394v1CY2h0omiBl5krs++3s1DQQdFZjSCoeaabao3tapowYvbST5H9wqBZUT4xVqJcQll/DSQBfRowAwr9OCFRY2uO/migDoRRJbh0NNu4/uoGchB6wqId2ANfLxx1ARnEIOqcwf3ZUXcCv6DbVtUSJ4NMWSS/1PrTL8zzG4m6g2Du7M4RLA8uxY9eSwigRVY8pXE1migOubX88OSC3sCQznJx3Nf2fZAowVztmL43p+Ub6LR/vgWP/xisPAE/cFada3WowgGZH33kwhGFx3y+TTi2YwJkrGLNiZ8y0T3lKiWU5YnZpKGBkCKd6sEMyBrV/09ZqxVDiw== user@DESKTOP-6IJPB9A"' >> terraform.tfvars
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        id: plan
-        run: |
-          set -e
-          terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode
-          echo "exit_code=2" >> $GITHUB_OUTPUT
-        continue-on-error: true
-      - name: No changes
-        if: steps.plan.outcome == 'success' && steps.plan.outputs.exit_code == '0'
-        run: echo "✅ Aucun changement détecté."
-
-      - name: Stop if changes detected (manual validation required)
-        if: steps.plan.outcome == 'success' && steps.plan.outputs.exit_code == '2'
-        run: |
-          echo "⚠️ Des changements ont été détectés. Validation manuelle requise avant application."
-          exit 1
-
-      - name: Plan failed
-        if: steps.plan.outcome != 'success'
-        run: |
-          echo "❌ Échec du plan Terraform."
-          exit 1
-
-      - name: Apply Terraform (only if changes)
-        if: steps.plan.outputs.no_changes == 'false'
-        run: terraform apply -var-file=terraform.tfvars -auto-approve
-
-      - name: Output public IP
-        if: steps.plan.outputs.no_changes == 'false'
-        run: terraform output -raw public_ip
-
       - name: Get VM IP
-        if: steps.plan.outputs.no_changes == 'false'
         id: get_ip
         run: echo "VM_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
 
       - name: Generate SSH key
-        if: steps.plan.outputs.no_changes == 'false'
         run: |
           ssh-keygen -t rsa -b 4096 -f temp-ssh-key -N ""
           echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
@@ -86,22 +27,12 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "SSH_PUBLIC_KEY=$(cat temp-ssh-key.pub)" >> $GITHUB_ENV
 
-      - name: Inject SSH public key in VM with Terraform
-        if: steps.plan.outputs.no_changes == 'false'
-        run: echo "public_ssh_key = \"${{ env.SSH_PUBLIC_KEY }}\"" > temp-auto.tfvars
-
-      - name: Re-apply Terraform with public key
-        if: steps.plan.outputs.no_changes == 'false'
-        run: terraform apply -var-file=terraform.tfvars -var-file=temp-auto.tfvars -auto-approve
-
       - name: Save private key to file
-        if: steps.plan.outputs.no_changes == 'false'
         run: |
           echo "${{ env.SSH_PRIVATE_KEY }}" > temp-ssh-key.pem
           chmod 600 temp-ssh-key.pem
 
       - name: Deploy Docker container via SSH
-        if: steps.plan.outputs.no_changes == 'false'
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ env.VM_IP }}
