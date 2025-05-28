@@ -9,7 +9,7 @@ WORKDIR /app
 # Copier uniquement les requirements au début pour tirer parti du cache
 COPY requirements.txt .
 
-# Installer les dépendances système nécessaires pour compiler certains packages Python
+# Installer les dépendances système nécessaires pour compiler certains pckg Python
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential \
