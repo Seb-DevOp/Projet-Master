@@ -11,7 +11,7 @@ provider "google" {
 }
 
 resource "google_compute_network" "vpc_network" {
-  name = "vpc-ci-cd-projet-master"  # change le nom
+  name = "vpc-ci-cd-projet-master" 
   auto_create_subnetworks = false
 }
 
@@ -23,7 +23,7 @@ resource "google_compute_subnetwork" "subnet" {
 }
 
 resource "google_compute_address" "public_ip" {
-  name   = "ci-cd-ip-projet-master"  # change le nom
+  name   = "ci-cd-ip-projet-master" 
   region = var.region
 }
 
