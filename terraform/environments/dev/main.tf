@@ -59,9 +59,48 @@ resource "google_compute_instance" "vm" {
     }
   }
 
-metadata = {
-  ssh-keys = "${var.admin_username}:${var.public_ssh_key}"
-}
+  metadata = {
+    ssh-keys = "${var.admin_username}:${var.public_ssh_key}"
+    startup-script = <<-EOT
+      #!/bin/bash
+      apt-get update
+      apt-get install -y docker.io docker-compose git
+
+      # Ajoute l'utilisateur ubuntu au groupe docker
+      usermod -aG docker ubuntu
+
+      # Crée le dossier Jenkins
+      mkdir -p /home/ubuntu/jenkins
+      cd /home/ubuntu/jenkins
+
+      # Crée le Dockerfile Jenkins
+      cat <<EOF > Dockerfile
+      FROM jenkins/jenkins:lts
+      USER root
+      RUN apt-get update && apt-get install -y docker.io
+      USER jenkins
+      EOF
+
+      # Crée le docker-compose.yml
+      cat <<EOF > docker-compose.yml
+      version: '3'
+      services:
+        jenkins:
+          build: .
+          ports:
+            - "8080:8080"
+            - "50000:50000"
+          volumes:
+            - jenkins_home:/var/jenkins_home
+      volumes:
+        jenkins_home:
+      EOF
+
+      # Lance Jenkins
+      docker-compose up -d
+    EOT
+  }
+
 
   tags = ["http-server", "https-server"]
 
