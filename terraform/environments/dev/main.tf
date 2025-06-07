@@ -1,20 +1,23 @@
 terraform {
   backend "gcs" {
-    bucket  = "bucket_projet_master_dev"
-    prefix  = "vm/projet"
+    bucket = "bucket_projet_master_dev"
+    prefix = "vm/projet"
   }
 }
+
 provider "google" {
   project = var.project_id
   region  = var.region
   zone    = var.zone
 }
 
+# Réseau VPC personnalisé
 resource "google_compute_network" "vpc_network" {
-  name = "vpc-ci-cd-projet-master-dev" 
+  name                    = "vpc-ci-cd-projet-master-dev"
   auto_create_subnetworks = false
 }
 
+# Sous-réseau
 resource "google_compute_subnetwork" "subnet" {
   name          = "subnet-ci-cd-projet-master-dev"
   region        = var.region
@@ -22,23 +25,26 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range = "10.0.0.0/24"
 }
 
+# Adresse IP publique
 resource "google_compute_address" "public_ip" {
-  name   = "ci-cd-ip-projet-master-dev" 
+  name   = "ci-cd-ip-projet-master-dev"
   region = var.region
 }
 
+# Règle de firewall : SSH, HTTP, HTTPS
 resource "google_compute_firewall" "default" {
   name    = "allow-ssh-http-projet-master-dev"
   network = google_compute_network.vpc_network.id
 
   allow {
     protocol = "tcp"
-    ports    = ["22", "443", "80"]
+    ports    = ["22", "80", "443"]
   }
 
   source_ranges = ["0.0.0.0/0"]
 }
 
+# Machine virtuelle avec script de démarrage
 resource "google_compute_instance" "vm" {
   name         = "ci-cd-vm-projet-master-dev"
   machine_type = "e2-medium"
@@ -59,54 +65,57 @@ resource "google_compute_instance" "vm" {
     }
   }
 
+  # Ajout de la clé SSH dans les métadonnées
   metadata = {
     ssh-keys = "${var.admin_username}:${var.public_ssh_key}"
-    startup-script = <<-EOT
-      #!/bin/bash
-      apt-get update
-      apt-get install -y docker.io docker-compose git
-
-      # Ajoute l'utilisateur ubuntu au groupe docker
-      usermod -aG docker ubuntu
-
-      # Crée le dossier Jenkins
-      mkdir -p /home/ubuntu/jenkins
-      cd /home/ubuntu/jenkins
-
-      # Crée le Dockerfile Jenkins
-      cat <<EOF > Dockerfile
-      FROM jenkins/jenkins:lts
-      USER root
-      RUN apt-get update && apt-get install -y docker.io
-      USER jenkins
-      EOF
-
-      # Crée le docker-compose.yml
-      cat <<EOF > docker-compose.yml
-      version: '3'
-      services:
-        jenkins:
-          build: .
-          ports:
-            - "8080:8080"
-            - "50000:50000"
-          volumes:
-            - jenkins_home:/var/jenkins_home
-      volumes:
-        jenkins_home:
-      EOF
-
-      # Lance Jenkins
-      docker-compose up -d
-    EOT
   }
 
+  # Script de démarrage exécuté à la première initialisation
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    echo "==== Début du startup-script ====" >> /var/log/startup-script.log
+
+    apt-get update >> /var/log/startup-script.log 2>&1
+    apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
+
+    usermod -aG docker ubuntu
+
+    mkdir -p /home/ubuntu/jenkins
+    cd /home/ubuntu/jenkins
+
+    # Dockerfile Jenkins
+    cat <<EOF > Dockerfile
+    FROM jenkins/jenkins:lts
+    USER root
+    RUN apt-get update && apt-get install -y docker.io
+    USER jenkins
+    EOF
+
+    # docker-compose.yml
+    cat <<EOF > docker-compose.yml
+    version: '3'
+    services:
+      jenkins:
+        build: .
+        ports:
+          - "8080:8080"
+          - "50000:50000"
+        volumes:
+          - jenkins_home:/var/jenkins_home
+    volumes:
+      jenkins_home:
+    EOF
+
+    # Lancer Jenkins
+    docker-compose up -d >> /var/log/startup-script.log 2>&1
+
+    echo "==== Fin du startup-script ====" >> /var/log/startup-script.log
+  EOT
 
   tags = ["http-server", "https-server"]
-
-  
 }
 
+# Affichage de l'adresse IP publique
 output "public_ip" {
   value = google_compute_address.public_ip.address
 }
