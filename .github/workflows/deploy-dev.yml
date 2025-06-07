@@ -34,5 +34,4 @@ jobs:
         run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch'
         run: terraform apply -var-file=terraform.tfvars -auto-approve
