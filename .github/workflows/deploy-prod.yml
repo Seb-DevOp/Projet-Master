@@ -44,19 +44,6 @@ jobs:
         run: |
           terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode || echo $? > plan_exit_code.txt
           echo "::set-output name=exit_code::$(cat plan_exit_code.txt || echo 0)"
-        
-      - name: Display plan result
-        run: |
-          echo "Plan exit code: ${{ steps.plan.outputs.exit_code }}"
-          if [[ "${{ steps.plan.outputs.exit_code }}" == "0" ]]; then
-            echo "✅ Aucun changement détecté."
-          elif [[ "${{ steps.plan.outputs.exit_code }}" == "2" ]]; then
-            echo "⚠️ Changements détectés, veuillez lancer manuellement le déploiement via l’onglet Actions."
-            exit 78  # Neutral exit, ne casse pas la pipeline mais stop job ici
-          else
-            echo "❌ Erreur lors du plan Terraform."
-            exit 1
-          fi
 
       - name: Terraform Apply (auto uniquement si aucun changement détecté)
         if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
@@ -107,7 +94,3 @@ jobs:
             sudo apt-get install -y docker.io
             sudo systemctl start docker
             sudo systemctl enable docker
-            sudo docker pull nginx:latest
-            sudo docker stop my-nginx || true
-            sudo docker rm my-nginx || true
-            sudo docker run -d --name my-nginx -p 80:80 nginx:latest
