@@ -28,14 +28,6 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-     # - name: Create terraform.tfvars fil
-     #   run: |
-      #    echo 'project_id         = "projet-pipeline"' > terraform.tfvars
-      #    echo 'region             = "europe-west1"' >> terraform.tfvars
-       #   echo 'zone               = "europe-west1-b"' >> terraform.tfvars
-       #   echo 'admin_username     = "ubuntu"' >> terraform.tfvars
-       #   echo 'public_ssh_key     = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDORx8rY3YsXcMyVlMVgyX7SJM/czRvPgYFOub+a+yj0wkBNSz5FeYRX62zw82iPKVqbIAC6FeL5PDteOQzyLbw37zWFz+2ZiSEYolg4RYG8A1LH995nlSn+0GAbzSeTEFCMLipFCmcOP5sRVXiNQjcwLMPaaJ9nKOEJzJxFQaMav3Qfkpi02ilnRLcOjdOjxxyxRsPBi30zTemZ2pn20358/OwnA1/xa+FBO0+0ryKXmeID4P8SL/JdsJauDqQ3htUrTjF0yLWyzaJAyJiDQyy1tmL5vbdOLMaApFhEsN2BJrxIpFdAkvbXDxgvpW3doq/mcUsoG7pXvZk1YA4hk1atUwlk56e42394v1CY2h0omiBl5krs++3s1DQQdFZjSCoeaabao3tapowYvbST5H9wqBZUT4xVqJcQll/DSQBfRowAwr9OCFRY2uO/migDoRRJbh0NNu4/uoGchB6wqId2ANfLxx1ARnEIOqcwf3ZUXcCv6DbVtUSJ4NMWSS/1PrTL8zzG4m6g2Du7M4RLA8uxY9eSwigRVY8pXE1migOubX88OSC3sCQznJx3Nf2fZAowVztmL43p+Ub6LR/vgWP/xisPAE/cFada3WowgGZH33kwhGFx3y+TTi2YwJkrGLNiZ8y0T3lKiWU5YnZpKGBkCKd6sEMyBrV/09ZqxVDiw== user@DESKTOP-6IJPB9A"' >> terraform.tfvars
-
       - name: Terraform Init
         run: terraform init
 
@@ -44,19 +36,6 @@ jobs:
         run: |
           terraform plan -var-file=terraform.tfvars -out=tfplan.out -detailed-exitcode || echo $? > plan_exit_code.txt
           echo "::set-output name=exit_code::$(cat plan_exit_code.txt || echo 0)"
-        
-      - name: Display plan result
-        run: |
-          echo "Plan exit code: ${{ steps.plan.outputs.exit_code }}"
-          if [[ "${{ steps.plan.outputs.exit_code }}" == "0" ]]; then
-            echo "✅ Aucun changement détecté."
-          elif [[ "${{ steps.plan.outputs.exit_code }}" == "2" ]]; then
-            echo "⚠️ Changements détectés, veuillez lancer manuellement le déploiement via l’onglet Actions."
-            exit 78  # Neutral exit, ne casse pas la pipeline mais stop job ici
-          else
-            echo "❌ Erreur lors du plan Terraform."
-            exit 1
-          fi
 
       - name: Terraform Apply (auto uniquement si aucun changement détecté)
         if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
@@ -89,25 +68,3 @@ jobs:
         if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
         run: terraform apply -var-file=terraform.tfvars -var-file=temp-auto.tfvars -auto-approve
 
-      - name: Save private key to file
-        if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
-        run: |
-          echo "${{ env.SSH_PRIVATE_KEY }}" > temp-ssh-key.pem
-          chmod 600 temp-ssh-key.pem
-
-      - name: Deploy Docker container via SSH
-        if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ env.VM_IP }}
-          username: ubuntu
-          key: ${{ env.SSH_PRIVATE_KEY }}
-          script: |
-            sudo apt-get update -y
-            sudo apt-get install -y docker.io
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo docker pull nginx:latest
-            sudo docker stop my-nginx || true
-            sudo docker rm my-nginx || true
-            sudo docker run -d --name my-nginx -p 80:80 nginx:latest
