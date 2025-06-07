@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:   # Permet de lancer manuellement (ex: pour apply après validation)
+  workflow_dispatch:
 
 jobs:
   terraform-deploy:
@@ -28,7 +28,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-     # - name: Create terraform.tfvars file
+     # - name: Create terraform.tfvars fil
      #   run: |
       #    echo 'project_id         = "projet-pipeline"' > terraform.tfvars
       #    echo 'region             = "europe-west1"' >> terraform.tfvars
