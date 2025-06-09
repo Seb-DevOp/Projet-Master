@@ -87,6 +87,13 @@ resource "google_compute_instance" "vm" {
   # Script de démarrage exécuté à la première initialisation
   metadata_startup_script = <<-EOT
     #!/bin/bash
+    cat <<EOF > /etc/fstab
+    LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
+    LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
+    /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
+    /dev/lab_vg/lv_etc  /etc  ext4  defaults  0 0
+    EOF
+    
     echo "==== Début du startup-script ====" >> /var/log/startup-script.log
 
     apt-get update >> /var/log/startup-script.log 2>&1
