@@ -41,7 +41,7 @@ resource "google_compute_firewall" "default" {
     ports    = ["22", "80", "443", "8080"]
   }
 
-  source_ranges = ["0.0.0.0/0"]
+  source_ranges = ["87.89.182.243"]
 }
 
 # Machine virtuelle avec script de démarrage
@@ -53,7 +53,18 @@ resource "google_compute_instance" "vm" {
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2004-lts"
+      size  = 10 # Disque OS de 10GB
     }
+  }
+  attached_disk {
+    source      = google_compute_disk.data_disk.id
+    device_name = "data-disk"
+  }
+  resource "google_compute_disk" "data_disk" {
+  name  = "ci-cd-data-disk-dev"
+  type  = "pd-standard"
+  zone  = var.zone
+  size  = 10 # Disque DATA de 10GB
   }
 
   network_interface {
