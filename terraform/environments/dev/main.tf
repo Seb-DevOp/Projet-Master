@@ -91,7 +91,7 @@ resource "google_compute_instance" "vm" {
     LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
     LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
     /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
-    /dev/lab_vg/lv_etc  /etc  ext4  defaults  0 0
+    /dev/lab_vg/lv_etc  /var  ext4  defaults  0 0
     EOF
     mount -a
     echo "==== Début du startup-script ====" >> /var/log/startup-script.log
