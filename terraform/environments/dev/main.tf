@@ -87,13 +87,6 @@ resource "google_compute_instance" "vm" {
   # Script de démarrage exécuté à la première initialisation
   metadata_startup_script = <<-EOT
     #!/bin/bash
-    if ! lsblk | grep -q data-disk; then
-      mkfs.ext4 -F /dev/disk/by-id/google-data-disk
-    fi
-    mkdir -p /mnt/data
-    mount /dev/disk/by-id/google-data-disk /mnt/data
-    echo '/dev/disk/by-id/google-data-disk /mnt/data ext4 defaults 0 0' >> /etc/fstab
-
     echo "==== Début du startup-script ====" >> /var/log/startup-script.log
 
     apt-get update >> /var/log/startup-script.log 2>&1
