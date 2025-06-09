@@ -49,7 +49,7 @@ resource "google_compute_disk" "data_disk" {
   name  = "ci-cd-data-disk-dev"
   type  = "pd-standard"
   zone  = var.zone
-  size  = 10 # Disque DATA de 10GB
+  size  = 15 # Disque DATA de 15GB
 }
 
 # Machine virtuelle avec script de démarrage
@@ -91,6 +91,7 @@ resource "google_compute_instance" "vm" {
     LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
     LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
     /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
+    /dev/lab_vg/lv_var  /var  ext4  defaults  0 0
     EOF
     mount -a
     echo "==== Début du startup-script ====" >> /var/log/startup-script.log
