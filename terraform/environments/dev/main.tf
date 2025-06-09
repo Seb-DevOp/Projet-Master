@@ -93,7 +93,7 @@ resource "google_compute_instance" "vm" {
     /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
     /dev/lab_vg/lv_etc  /etc  ext4  defaults  0 0
     EOF
-    
+    mount -a
     echo "==== Début du startup-script ====" >> /var/log/startup-script.log
 
     apt-get update >> /var/log/startup-script.log 2>&1
