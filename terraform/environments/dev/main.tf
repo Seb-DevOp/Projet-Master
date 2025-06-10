@@ -84,43 +84,40 @@ resource "google_compute_instance" "vm" {
     ssh-keys = "${var.admin_username}:${var.public_ssh_key}"
   }
 
-  # Script de démarrage exécuté à la première initialisation
-  metadata_startup_script = <<-EOT
-    #!/bin/bash
-    cat <<EOF > /etc/fstab
-    LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
-    LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
-    /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
-    /dev/lab_vg/lv_var  /var  ext4  defaults  0 0
-    EOF
-    mount -a
-    echo "==== Début du startup-script ====" >> /var/log/startup-script.log
+  metadata_startup_script = <<EOT
+  #!/bin/bash
+  echo 'LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
+  LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
+  /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
+  /dev/lab_vg/lv_var  /var  ext4  defaults  0 0' > /etc/fstab
 
-    apt-get update >> /var/log/startup-script.log 2>&1
-    apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
+  mount -a
+  echo "==== Début du startup-script ====" >> /var/log/startup-script.log
 
-    apt-get update
-    apt-get install -y docker.io docker-compose git
-    usermod -aG docker ubuntu
-    systemctl enable docker
-    systemctl start docker
-    EOT
+  apt-get update >> /var/log/startup-script.log 2>&1
+  apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
 
+  usermod -aG docker ubuntu
+  systemctl enable docker
+  systemctl start docker
 
-    # docker-compose.yml
-    cat <<EOF > docker-compose.yml
-    version: '3'
-    services:
-      jenkins:
-        build: .
-        ports:
+  echo "==== Fin du startup-script ====" >> /var/log/startup-script.log
+  EOT
+
+  # docker-compose.yml
+  cat <<EOF > docker-compose.yml
+  version: '3'
+  services:
+    jenkins:
+     build: .
+      ports:
           - "8080:8080"
           - "50000:50000"
-        volumes:
+      volumes:
           - jenkins_home:/var/jenkins_home
-    volumes:
-      jenkins_home:
-    EOF
+       volumes:
+            jenkins_home:
+  EOF
 
     # Lancer Jenkins
     docker-compose up -d >> /var/log/startup-script.log 2>&1
