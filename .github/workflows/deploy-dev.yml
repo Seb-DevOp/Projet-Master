@@ -135,19 +135,19 @@ jobs:
           chmod 600 private_key.pem
 
           ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP << EOF
-            apt-get update >> /var/log/startup-script.log 2>&1
-            apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
+            sudo apt-get update -y>> /var/log/startup-script.log 2>&1
+            sudo apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
 
             usermod -aG docker ubuntu
 
             # Activation et démarrage du service docker
-            systemctl enable docker
-            systemctl start docker
+            sudo systemctl enable docker
+            sudo systemctl start docker
             echo "Docker Compose version:"
             docker-compose --version
 
-            rm -rf monitoring
-            git clone https://github.com/${GITHUB_REPOSITORY}.git
+            sudo rm -rf monitoring
+            sudo git clone https://github.com/${GITHUB_REPOSITORY}.git
             cd $(basename ${GITHUB_REPOSITORY})
             cd monitoring
             docker-compose down || true
