@@ -67,6 +67,7 @@ jobs:
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push Docker Image
+        working-directory: ./  # ⬅️ revient à la racine du repo
         run: |
           docker build \
             --build-arg ENV=dev \
