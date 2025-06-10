@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import os
 from datetime import datetime
+import uvicorn
 
 app = FastAPI()
 
@@ -13,3 +14,7 @@ def read_root():
         "build_time": os.getenv("BUILD_TIME", datetime.utcnow().isoformat()),
         "status": "ok"
     }
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8080))  # prends PORT de l'env ou 8080 par défaut
+    uvicorn.run(app, host="0.0.0.0", port=port)
