@@ -138,7 +138,6 @@ jobs:
             apt-get update >> /var/log/startup-script.log 2>&1
             apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
 
-            # Ajout de l'utilisateur ubuntu au groupe docker
             usermod -aG docker ubuntu
 
             # Activation et démarrage du service docker
