@@ -117,21 +117,28 @@ jobs:
         run: |
           docker system prune -af || true
 
-      - name: Deploy Prometheus & Grafana to VM
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.VM_IP }}
-          username: ${{ secrets.VM_SSH_USER || 'ubuntu' }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
+      - name: Deploy Prometheus & Grafana to VM via SSH
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_IP: ${{ secrets.VM_IP }}
+          VM_USER: ubuntu
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "$VM_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP << 'EOF'
             echo "Docker version:"
             docker --version
             echo "Docker Compose version:"
             docker-compose --version
-            
+
             rm -rf monitoring
-            git clone https://github.com/${{ github.repository }}.git
-            cd $(basename ${{ github.repository }})
+            git clone https://github.com/${GITHUB_REPOSITORY}.git
+            cd $(basename ${GITHUB_REPOSITORY})
             cd monitoring
             docker-compose down || true
             docker-compose up -d
+      EOF
+
+          rm private_key.pem
