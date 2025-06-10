@@ -102,6 +102,11 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -var-file=terraform.tfvars -auto-approve
 
+      - name: Get VM IP
+        if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
+        id: get_ip
+        run: echo "VM_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
+        
       - name: Create Git tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
