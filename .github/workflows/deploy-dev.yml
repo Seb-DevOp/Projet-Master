@@ -139,6 +139,6 @@ jobs:
             cd monitoring
             docker-compose down || true
             docker-compose up -d
-      EOF
+          EOF
 
           rm private_key.pem
