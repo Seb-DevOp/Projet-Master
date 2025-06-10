@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # important pour récupérer les tags
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -35,3 +37,32 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -var-file=terraform.tfvars -auto-approve
+
+      - name: Get latest dev tag
+        id: get_tag
+        run: |
+          latest=$(git tag --list "dev-v*" --sort=-v:refname | head -n 1)
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Bump tag version
+        id: bump_tag
+        run: |
+          latest=${{ steps.get_tag.outputs.latest }}
+          if [ -z "$latest" ]; then
+            new_tag="dev-v0.1.0"
+          else
+            version=${latest#dev-v}
+            major=$(echo $version | cut -d. -f1)
+            minor=$(echo $version | cut -d. -f2)
+            patch=$(echo $version | cut -d. -f3)
+            new_patch=$((patch + 1))
+            new_tag="dev-v$major.$minor.$new_patch"
+          fi
+          echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create Git tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.bump_tag.outputs.new_tag }}
+          git push origin ${{ steps.bump_tag.outputs.new_tag }}
