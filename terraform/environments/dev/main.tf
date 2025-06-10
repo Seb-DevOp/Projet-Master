@@ -84,46 +84,58 @@ resource "google_compute_instance" "vm" {
     ssh-keys = "${var.admin_username}:${var.public_ssh_key}"
   }
 
-  metadata_startup_script = <<EOT
-  #!/bin/bash
-  echo 'LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
-  LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
-  /dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
-  /dev/lab_vg/lv_var  /var  ext4  defaults  0 0' > /etc/fstab
+metadata_startup_script = <<EOT
+#!/bin/bash
 
-  mount -a
-  echo "==== Début du startup-script ====" >> /var/log/startup-script.log
+# Mise à jour fstab
+cat <<EOF > /etc/fstab
+LABEL=cloudimg-rootfs   /        ext4   defaults        0 1
+LABEL=UEFI      /boot/efi       vfat    umask=0077      0 1
+/dev/lab_vg/lv_opt  /opt  ext4  defaults  0 0
+/dev/lab_vg/lv_var  /var  ext4  defaults  0 0
+EOF
 
-  apt-get update >> /var/log/startup-script.log 2>&1
-  apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
+mount -a
 
-  usermod -aG docker ubuntu
-  systemctl enable docker
-  systemctl start docker
+echo "==== Début du startup-script ====" >> /var/log/startup-script.log
 
-  echo "==== Fin du startup-script ====" >> /var/log/startup-script.log
-  EOT
+# Installation des paquets nécessaires
+apt-get update >> /var/log/startup-script.log 2>&1
+apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
 
-  # docker-compose.yml
-  cat <<EOF > docker-compose.yml
-  version: '3'
-  services:
-    jenkins:
-     build: .
-      ports:
-          - "8080:8080"
-          - "50000:50000"
-      volumes:
-          - jenkins_home:/var/jenkins_home
-       volumes:
-            jenkins_home:
-  EOF
+# Ajout de l'utilisateur ubuntu au groupe docker
+usermod -aG docker ubuntu
 
-    # Lancer Jenkins
-    docker-compose up -d >> /var/log/startup-script.log 2>&1
+# Activation et démarrage du service docker
+systemctl enable docker
+systemctl start docker
 
-    echo "==== Fin du startup-script ====" >> /var/log/startup-script.log
-  EOT
+# Création du dossier monitoring et docker-compose.yml pour Jenkins
+mkdir -p /home/ubuntu/monitoring
+cd /home/ubuntu/monitoring
+
+cat <<EOF > docker-compose.yml
+version: '3'
+services:
+  jenkins:
+    build: .
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
+volumes:
+  jenkins_home:
+EOF
+
+# Lancement de Jenkins via docker-compose
+docker-compose up -d >> /var/log/startup-script.log 2>&1
+
+echo "==== Fin du startup-script ====" >> /var/log/startup-script.log
+
+EOT
+
 
   tags = ["http-server", "https-server"]
 }
