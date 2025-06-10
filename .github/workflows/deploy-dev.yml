@@ -106,7 +106,7 @@ jobs:
         if: steps.plan.outputs.exit_code == '0' || github.event_name == 'workflow_dispatch'
         id: get_ip
         run: echo "VM_IP=$(terraform output -raw public_ip)" >> $GITHUB_ENV
-        
+
       - name: Create Git tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -121,6 +121,13 @@ jobs:
         if: success()
         run: |
           docker system prune -af || true
+
+      - name: Debug VM_IP
+        run: |
+          echo "VM_IP from env: $VM_IP"
+          echo "VM_IP from secret: ${{ secrets.VM_IP }}"
+        env:
+          VM_IP: ${{ secrets.VM_IP }}
 
       - name: Deploy Prometheus & Grafana to VM via SSH
         env:
