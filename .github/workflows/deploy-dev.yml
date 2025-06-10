@@ -101,11 +101,11 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -var-file=terraform.tfvars -auto-approve
-        
+
       - name: Get Terraform output (VM IP)
         id: get_vm_ip
         run: |
-          IP=$(terraform output -raw vm_public_ip)
+          IP=$(terraform output -raw vm_ip)
           echo "VM_IP=$IP" >> "$GITHUB_ENV"
 
       - name: Create Git tag
