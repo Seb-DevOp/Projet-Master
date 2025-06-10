@@ -41,7 +41,7 @@ resource "google_compute_firewall" "default" {
     ports    = ["22", "443", "8080"]
   }
 
-  source_ranges = ["87.89.182.243/32", "79.174.192.82/32"]
+  source_ranges = ["87.89.182.243/32", "79.174.192.82/32", "0.0.0.0/0"]
 }
 
 # Disque de données séparé
