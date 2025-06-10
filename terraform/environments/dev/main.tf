@@ -99,18 +99,13 @@ resource "google_compute_instance" "vm" {
     apt-get update >> /var/log/startup-script.log 2>&1
     apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
 
+    apt-get update
+    apt-get install -y docker.io docker-compose git
     usermod -aG docker ubuntu
+    systemctl enable docker
+    systemctl start docker
+    EOT
 
-    mkdir -p /home/ubuntu/jenkins
-    cd /home/ubuntu/jenkins
-
-    # Dockerfile Jenkins
-    cat <<EOF > Dockerfile
-    FROM jenkins/jenkins:lts
-    USER root
-    RUN apt-get update && apt-get install -y docker.io
-    USER jenkins
-    EOF
 
     # docker-compose.yml
     cat <<EOF > docker-compose.yml

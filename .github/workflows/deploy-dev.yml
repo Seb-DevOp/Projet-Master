@@ -116,3 +116,17 @@ jobs:
         if: success()
         run: |
           docker system prune -af || true
+          
+      - name: Deploy Prometheus & Grafana to VM
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.VM_SSH_USER || 'ubuntu' }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            rm -rf monitoring
+            git clone https://github.com/${{ github.repository }}.git
+            cd $(basename ${{ github.repository }})
+            cd monitoring
+            docker-compose down || true
+            docker-compose up -d
