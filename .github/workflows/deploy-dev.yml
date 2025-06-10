@@ -27,6 +27,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify Docker version
+        run: docker --version
+
+      - name: Verify gcloud version
+        run: gcloud --version
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -37,12 +43,15 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Set up Docker for GCP
+      - name: Set up Docker buildx for multi-arch support
         uses: docker/setup-buildx-action@v3
 
       - name: Auth Docker to GCR
         run: |
           gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: List existing git tags
+        run: git tag --list "dev-v*"
 
       - name: Get latest dev tag
         id: get_tag
@@ -65,9 +74,10 @@ jobs:
             new_tag="dev-v$major.$minor.$new_patch"
           fi
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+          echo "New tag will be $new_tag"
 
       - name: Build & Push Docker Image
-        working-directory: ./  # ⬅️ revient à la racine du repo
+        working-directory: ./  # retour racine pour Dockerfile
         run: |
           docker build \
             --build-arg ENV=dev \
@@ -76,7 +86,12 @@ jobs:
             --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             -t europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}:${{ steps.bump_tag.outputs.new_tag }} \
             .
+          docker images europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}
           docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}:${{ steps.bump_tag.outputs.new_tag }}
+
+      - name: Validate Docker image pushed to GCR
+        run: |
+          gcloud container images list-tags europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}
 
       - name: Terraform Init
         run: terraform init
@@ -96,3 +111,8 @@ jobs:
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git tag ${{ steps.bump_tag.outputs.new_tag }}
           git push origin ${{ steps.bump_tag.outputs.new_tag }}
+
+      - name: Docker system prune (cleanup unused data)
+        if: success()
+        run: |
+          docker system prune -af || true
