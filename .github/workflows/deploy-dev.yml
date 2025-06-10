@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: write
-  
+
 jobs:
   terraform-dev:
     runs-on: ubuntu-latest
@@ -16,11 +16,16 @@ jobs:
       run:
         working-directory: terraform/environments/dev
 
+    env:
+      IMAGE_NAME: fastapi-env-info
+      REGION: europe-west1  # adapte selon ton besoin
+      PROJECT_ID: projet-pipeline  # adapte selon ton projet
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # important pour récupérer les tags
+          fetch-depth: 0
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -32,14 +37,12 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Set up Docker for GCP
+        uses: docker/setup-buildx-action@v3
 
-      - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars
-
-      - name: Terraform Apply
-        run: terraform apply -var-file=terraform.tfvars -auto-approve
+      - name: Auth Docker to GCR
+        run: |
+          gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
       - name: Get latest dev tag
         id: get_tag
@@ -63,9 +66,32 @@ jobs:
           fi
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
 
+      - name: Build & Push Docker Image
+        run: |
+          docker build \
+            --build-arg ENV=dev \
+            --build-arg VERSION=${{ steps.bump_tag.outputs.new_tag }} \
+            --build-arg COMMIT=$(git rev-parse --short HEAD) \
+            --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -t europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}:${{ steps.bump_tag.outputs.new_tag }} \
+            .
+          docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}:${{ steps.bump_tag.outputs.new_tag }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -var-file=terraform.tfvars
+
+      - name: Terraform Apply
+        run: terraform apply -var-file=terraform.tfvars -auto-approve
+
       - name: Create Git tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git tag ${{ steps.bump_tag.outputs.new_tag }}
           git push origin ${{ steps.bump_tag.outputs.new_tag }}
