@@ -18,8 +18,8 @@ jobs:
 
     env:
       IMAGE_NAME: fastapi-env-info
-      REGION: europe-west1  # adapte selon ton besoin
-      PROJECT_ID: projet-pipeline  # adapte selon ton projet
+      REGION: europe-west1
+      PROJECT_ID: projet-pipeline
 
     steps:
       - name: Checkout code
@@ -124,10 +124,11 @@ jobs:
           VM_USER: ubuntu
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
+          echo "VM_IP is $VM_IP"  # debug, optionnel
           echo "$VM_SSH_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP << EOF
             echo "Docker version:"
             docker --version
             echo "Docker Compose version:"
