@@ -1,20 +1,50 @@
 from fastapi import FastAPI
 import os
+import platform
+import socket
 from datetime import datetime
-import uvicorn
 
 app = FastAPI()
 
 @app.get("/")
-def read_root():
+def root():
     return {
-        "env": os.getenv("ENV", "dev"),
+        "message": "Bienvenue sur mon API !",
+        "available_endpoints": ["/", "/info", "/healthz", "/metrics"]
+    }
+
+@app.get("/info")
+def info():
+    return {
+        "environment": os.getenv("ENV", "dev"),
         "version": os.getenv("VERSION", "v0.0.1"),
         "commit": os.getenv("COMMIT", "unknown"),
         "build_time": os.getenv("BUILD_TIME", datetime.utcnow().isoformat()),
-        "status": "ok"
+        "hostname": socket.gethostname(),
+        "python_version": platform.python_version(),
+        "system": platform.system(),
+        "release": platform.release()
     }
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))  # prends PORT de l'env ou 8080 par défaut
-    uvicorn.run(app, host="0.0.0.0", port=port)
+@app.get("/healthz")
+def health_check():
+    # Simuler un check simple
+    return {
+        "status": "ok",
+        "uptime": datetime.utcnow().isoformat(),
+        "services": {
+            "database": "ok",  # à adapter plus tard si tu veux checker une vraie BDD
+            "cache": "ok"
+        }
+    }
+
+@app.get("/metrics")
+def metrics():
+    return {
+        "cpu_load": os.getloadavg(),  # (1min, 5min, 15min)
+        "memory": {
+            "total": os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") // (1024 ** 2),
+            "available": os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") // (1024 ** 2)
+        },
+        "container_hostname": socket.gethostname()
+    }
