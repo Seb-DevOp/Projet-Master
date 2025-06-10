@@ -134,24 +134,34 @@ jobs:
           echo "$VM_SSH_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP << EOF
-            sudo apt-get update -y>> /var/log/startup-script.log 2>&1
-            sudo apt-get install -y docker.io docker-compose git >> /var/log/startup-script.log 2>&1
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP << 'EOF'
+            # Mise à jour et installation
+            sudo apt-get update -y >> ~/setup.log 2>&1
+            sudo apt-get install -y docker.io docker-compose git >> ~/setup.log 2>&1
 
-            usermod -aG docker ubuntu
+            # Ajout de l'utilisateur au groupe docker (sudo pour usermod)
+            sudo usermod -aG docker ubuntu
 
             # Activation et démarrage du service docker
             sudo systemctl enable docker
             sudo systemctl start docker
-            echo "Docker Compose version:"
-            docker-compose --version
 
-            sudo rm -rf monitoring
+            echo "Docker version:"
+            sudo docker --version
+
+            echo "Docker Compose version:"
+            sudo docker-compose --version
+
+            # Suppression propre du dossier monitoring avant clone
+            sudo rm -rf monitoring || true
             sudo git clone https://github.com/${GITHUB_REPOSITORY}.git
-            cd $(basename ${GITHUB_REPOSITORY})
-            cd monitoring
-            docker-compose down || true
-            docker-compose up -d
+            cd $(basename ${GITHUB_REPOSITORY}) || exit 1
+
+            cd monitoring || exit 1
+
+            # Utilisation de sudo pour docker-compose
+            sudo docker-compose down || true
+            sudo docker-compose up -d
           EOF
 
           rm private_key.pem
