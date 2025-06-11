@@ -76,22 +76,6 @@ jobs:
           echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
           echo "New tag will be $new_tag"
 
-      - name: Build & Push Docker Image
-        working-directory: ./  # retour racine pour Dockerfile
-        run: |
-          docker build \
-            --build-arg ENV=dev \
-            --build-arg VERSION=${{ steps.bump_tag.outputs.new_tag }} \
-            --build-arg COMMIT=$(git rev-parse --short HEAD) \
-            --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-            -t europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}:${{ steps.bump_tag.outputs.new_tag }} \
-            .
-          docker images europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}
-          docker push europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}:${{ steps.bump_tag.outputs.new_tag }}
-
-      - name: Validate Docker image pushed to GCR
-        run: |
-          gcloud container images list-tags europe-west1-docker.pkg.dev/${{ env.PROJECT_ID }}/default/${{ env.IMAGE_NAME }}
 
       - name: Terraform Init
         run: terraform init
@@ -123,33 +107,40 @@ jobs:
         run: |
           docker system prune -af || true
 
-
       - name: Deploy Prometheus & Grafana to VM via SSH
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
           VM_USER: ubuntu
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          echo "VM_IP is $VM_IP"  # debug, optionnel
+          echo "VM_IP is $VM_IP"
           echo "$VM_SSH_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP bash -s -- "$GITHUB_REPOSITORY" << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP bash -l -s -- "$GITHUB_REPOSITORY" << 'EOF'
             GITHUB_REPOSITORY=$1
 
             echo "Starting deployment on VM..."
 
-            # Mise à jour et installation (on affiche et check l'erreur)
+            # S'assurer que le PATH est complet
+            export PATH=$PATH:/usr/bin:/usr/local/bin
+            echo "Current PATH: $PATH"
+
+            # Mise à jour et installation
             sudo apt-get update -y || { echo "apt-get update failed"; exit 1; }
             sudo apt-get install -y docker.io docker-compose git || { echo "Installation failed"; exit 1; }
 
-            # Vérification installation Docker
+            # Vérification explicite de Docker
             if ! command -v docker >/dev/null 2>&1; then
-              echo "Docker command not found, exiting."
-              exit 1
+              if [ -x /usr/bin/docker ]; then
+                echo "Docker found at /usr/bin/docker"
+              else
+                echo "Docker command not found, exiting."
+                exit 1
+              fi
             fi
 
-            # Ajouter ubuntu au groupe docker si le groupe existe
+            # Ajouter ubuntu au groupe docker si possible
             if getent group docker >/dev/null; then
               sudo usermod -aG docker ubuntu
             else
@@ -160,23 +151,22 @@ jobs:
             sudo systemctl start docker || echo "Failed to start docker.service"
 
             echo "Docker version:"
-            sudo docker --version || true
+            sudo /usr/bin/docker --version || true
 
             echo "Docker Compose version:"
-            sudo docker-compose --version || true
+            sudo /usr/bin/docker-compose --version || true
 
-            # Suppression propre avant clone
+            # Nettoyage et clonage du repo
             sudo rm -rf monitoring || true
-
-            # Clonage du repo
             sudo git clone https://github.com/${GITHUB_REPOSITORY}.git || { echo "Git clone failed"; exit 1; }
 
             cd $(basename ${GITHUB_REPOSITORY}) || { echo "cd into repo failed"; exit 1; }
             cd monitoring || { echo "cd monitoring failed"; exit 1; }
 
-            # Lancement docker-compose
-            sudo docker-compose down || true
-            sudo docker-compose up -d
+            # Lancement des conteneurs
+            sudo /usr/bin/docker-compose down || true
+            sudo /usr/bin/docker-compose up -d
           EOF
 
           rm private_key.pem
+
