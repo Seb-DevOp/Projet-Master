@@ -130,14 +130,9 @@ jobs:
             sudo apt-get update -y || { echo "apt-get update failed"; exit 1; }
             sudo apt-get install -y docker.io docker-compose git || { echo "Installation failed"; exit 1; }
 
-            # Vérification explicite de Docker
-            if ! command -v docker >/dev/null 2>&1; then
-              if [ -x /usr/bin/docker ]; then
-                echo "Docker found at /usr/bin/docker"
-              else
-                echo "Docker command not found, exiting."
-                exit 1
-              fi
+            if ! sudo docker --version >/dev/null 2>&1; then
+              echo "Docker command not found even with sudo, exiting."
+              exit 1
             fi
 
             # Ajouter ubuntu au groupe docker si possible
