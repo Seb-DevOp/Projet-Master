@@ -130,27 +130,6 @@ jobs:
             sudo apt-get update -y || { echo "apt-get update failed"; exit 1; }
             sudo apt-get install -y docker.io docker-compose git || { echo "Installation failed"; exit 1; }
 
-            if ! sudo docker --version >/dev/null 2>&1; then
-              echo "Docker command not found even with sudo, exiting."
-              exit 1
-            fi
-
-            # Ajouter ubuntu au groupe docker si possible
-            if getent group docker >/dev/null; then
-              sudo usermod -aG docker ubuntu
-            else
-              echo "Docker group does not exist, skipping usermod."
-            fi
-
-            sudo systemctl enable docker || echo "Failed to enable docker.service"
-            sudo systemctl start docker || echo "Failed to start docker.service"
-
-            echo "Docker version:"
-            sudo /usr/bin/docker --version || true
-
-            echo "Docker Compose version:"
-            sudo /usr/bin/docker-compose --version || true
-
             # Nettoyage et clonage du repo
             sudo rm -rf monitoring || true
             sudo git clone https://github.com/${GITHUB_REPOSITORY}.git || { echo "Git clone failed"; exit 1; }
