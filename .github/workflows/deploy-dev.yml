@@ -168,7 +168,7 @@ jobs:
             # Suppression propre avant clone
             sudo rm -rf monitoring || true
 
-            # Clonage du repo GitHub
+            # Clonage du repo
             sudo git clone https://github.com/${GITHUB_REPOSITORY}.git || { echo "Git clone failed"; exit 1; }
 
             cd $(basename ${GITHUB_REPOSITORY}) || { echo "cd into repo failed"; exit 1; }
