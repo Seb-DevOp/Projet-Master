@@ -130,7 +130,7 @@ jobs:
             sudo apt-get update -y || { echo "apt-get update failed"; exit 1; }
             sudo apt-get install -y docker.io docker-compose git || { echo "Installation failed"; exit 1; }
 
-            # Nettoyage et clonage du repo
+            # Nettoyage et clonage repo
             sudo rm -rf monitoring || true
             sudo git clone https://github.com/${GITHUB_REPOSITORY}.git || { echo "Git clone failed"; exit 1; }
 
