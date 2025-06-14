@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:   # Permet de lancer manuellement (ex: pour apply après validation)
+  workflow_dispatch:
 
 jobs:
   terraform-deploy:

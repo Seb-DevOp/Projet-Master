@@ -6,6 +6,9 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   terraform-dev:
     runs-on: ubuntu-latest
@@ -13,9 +16,22 @@ jobs:
       run:
         working-directory: terraform/environments/dev
 
+    env:
+      IMAGE_NAME: fastapi-env-info
+      REGION: europe-west1
+      PROJECT_ID: projet-pipeline
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Verify Docker version
+        run: docker --version
+
+      - name: Verify gcloud version
+        run: gcloud --version
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -27,6 +43,40 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      - name: Set up Docker buildx for multi-arch support
+        uses: docker/setup-buildx-action@v3
+
+      - name: Auth Docker to GCR
+        run: |
+          gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: List existing git tags
+        run: git tag --list "dev-v*"
+
+      - name: Get latest dev tag
+        id: get_tag
+        run: |
+          latest=$(git tag --list "dev-v*" --sort=-v:refname | head -n 1)
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Bump tag version
+        id: bump_tag
+        run: |
+          latest=${{ steps.get_tag.outputs.latest }}
+          if [ -z "$latest" ]; then
+            new_tag="dev-v0.1.0"
+          else
+            version=${latest#dev-v}
+            major=$(echo $version | cut -d. -f1)
+            minor=$(echo $version | cut -d. -f2)
+            patch=$(echo $version | cut -d. -f3)
+            new_patch=$((patch + 1))
+            new_tag="dev-v$major.$minor.$new_patch"
+          fi
+          echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+          echo "New tag will be $new_tag"
+
+
       - name: Terraform Init
         run: terraform init
 
@@ -34,5 +84,63 @@ jobs:
         run: terraform plan -var-file=terraform.tfvars
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch'
         run: terraform apply -var-file=terraform.tfvars -auto-approve
+
+      - name: Get Terraform output (VM IP)
+        id: get_vm_ip
+        run: |
+          IP=$(terraform output -raw vm_ip)
+          echo "VM_IP=$IP" >> "$GITHUB_ENV"
+
+      - name: Create Git tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          git tag ${{ steps.bump_tag.outputs.new_tag }}
+          git push origin ${{ steps.bump_tag.outputs.new_tag }}
+
+      - name: Docker system prune (cleanup unused data)
+        if: success()
+        run: |
+          docker system prune -af || true
+
+      - name: Deploy Prometheus & Grafana to VM via SSH
+        env:
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          VM_USER: ubuntu
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "VM_IP is $VM_IP"
+          echo "$VM_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $VM_USER@$VM_IP bash -l -s -- "$GITHUB_REPOSITORY" << 'EOF'
+            GITHUB_REPOSITORY=$1
+
+            echo "Starting deployment on VM..."
+
+            # S'assurer que le PATH est complet
+            export PATH=$PATH:/usr/bin:/usr/local/bin
+            echo "Current PATH: $PATH"
+
+            # Mise à jour et installation
+            sudo apt-get update -y || { echo "apt-get update failed"; exit 1; }
+            sudo apt-get install -y docker.io docker-compose git || { echo "Installation failed"; exit 1; }
+
+            # Nettoyage et clonage repo
+            sudo rm -rf monitoring || true
+            sudo git clone https://github.com/${GITHUB_REPOSITORY}.git || { echo "Git clone failed"; exit 1; }
+
+            cd $(basename ${GITHUB_REPOSITORY}) || { echo "cd into repo failed"; exit 1; }
+            cd monitoring || { echo "cd monitoring failed"; exit 1; }
+
+            # Lancement des conteneurs
+            sudo /usr/bin/docker-compose down || true
+            sudo /usr/bin/docker-compose up -d
+          EOF
+
+          rm private_key.pem
+
